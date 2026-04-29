@@ -1,0 +1,56 @@
+# ============================================================
+#  Retail POS — Docker Compose
+#  Run everything with: docker compose up --build
+#  Stop everything with: docker compose down
+#
+#  Services:
+#    db  → MySQL 8.0  → localhost:3307  (3306 taken by local MySQL)
+#    web → Flask app  → localhost:8080  (5000 taken by AirPlay)
+# ============================================================
+
+services:
+
+  # ── MySQL Database ────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: retail_pos_db
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: retail_pos
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/mysql
+    ports:
+      # Port 3306 is taken by a local MySQL on your Mac → use 3307
+      # MySQL Workbench: connect on host 127.0.0.1, port 3307
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Flask Web App ─────────────────────────────────────────
+  web:
+    build: ./web
+    container_name: retail_pos_web
+    environment:
+      DB_HOST:     db
+      DB_USER:     app_readonly
+      DB_PASSWORD: readonly_pass
+      DB_NAME:     retail_pos
+      DB_PORT:     3306
+    ports:
+      # Port 5000 is taken by macOS AirPlay Receiver → use 8080
+      # Open http://localhost:8080 in your browser
+      - "8080:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+# ── Named Volume ──────────────────────────────────────────────
+# To wipe the database and start completely fresh:
+#   docker compose down -v
+volumes:
+  db_data:

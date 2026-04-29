@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Retail POS — Query Explorer</title>
+  <style>
+    /* ── Reset & Base ───────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0f1117;
+      --surface:    #1a1d27;
+      --surface2:   #22263a;
+      --border:     #2e3250;
+      --accent:     #4f8ef7;
+      --accent-dim: #2d5299;
+      --success:    #3ecf8e;
+      --error:      #f76e6e;
+      --warn:       #f7a84f;
+      --text:       #e4e8f0;
+      --text-dim:   #7a82a0;
+      --mono:       'Courier New', Courier, monospace;
+      --sans:       'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+    header .subtitle {
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+    header .badge {
+      margin-left: auto;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Main Layout ────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 20px 24px;
+    }
+
+    /* Top row: query input + history side-by-side */
+    .top-row {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 16px;
+    }
+
+    /* ── Panel shared styles ────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+
+    /* ── Query Input Panel ──────────────────────────────── */
+    #query-input {
+      width: 100%;
+      height: 130px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #query-input:focus { border-color: var(--accent); }
+    #query-input::placeholder { color: var(--text-dim); }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    button:hover { opacity: 0.88; }
+    button:active { opacity: 0.72; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      flex: 1;
+    }
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+
+    /* ── History Panel ──────────────────────────────────── */
+    .history-panel {
+      overflow: hidden;
+    }
+    #history-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 185px;
+    }
+    .history-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 6px 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .history-item:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .history-empty {
+      color: var(--text-dim);
+      font-size: 12px;
+      font-style: italic;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .btn-clear-history {
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      font-size: 11px;
+      padding: 5px 10px;
+      align-self: flex-start;
+    }
+
+    /* ── Results Panel ──────────────────────────────────── */
+    .results-panel {
+      min-height: 200px;
+    }
+    .results-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .result-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .badge-success { background: #0d3326; color: var(--success); }
+    .badge-error   { background: #3b1414; color: var(--error); }
+    .badge-info    { background: var(--surface2); color: var(--text-dim); }
+
+    #results-container {
+      overflow-x: auto;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead {
+      background: var(--surface2);
+      position: sticky;
+      top: 0;
+    }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      color: var(--text);
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    .null-value { color: var(--text-dim); font-style: italic; }
+
+    .placeholder-message {
+      text-align: center;
+      color: var(--text-dim);
+      padding: 40px 20px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .placeholder-message code {
+      background: var(--surface2);
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .error-message {
+      background: #3b1414;
+      border: 1px solid #6b2020;
+      border-radius: 6px;
+      padding: 14px 16px;
+      color: var(--error);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ── Loading spinner ────────────────────────────────── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ─────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 12px;
+      color: var(--text-dim);
+      font-size: 11px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <header>
+    <div class="logo">🛒 Retail POS</div>
+    <div class="subtitle">Query Explorer</div>
+    <div class="badge">READ-ONLY</div>
+  </header>
+
+  <!-- ── Main ────────────────────────────────────────────── -->
+  <main>
+
+    <!-- Top row: input + history -->
+    <div class="top-row">
+
+      <!-- Query Input Panel -->
+      <div class="panel">
+        <div class="panel-title">SQL Query</div>
+        <textarea
+          id="query-input"
+          spellcheck="false"
+          placeholder="Type a SELECT query here...&#10;&#10;Example: SELECT * FROM Product"></textarea>
+        <div class="btn-row">
+          <button class="btn-primary" id="btn-run">▶ Run Query</button>
+          <button class="btn-secondary" id="btn-clear-input">Clear Input</button>
+        </div>
+      </div>
+
+      <!-- History Panel -->
+      <div class="panel history-panel">
+        <div class="panel-title">Query History</div>
+        <div id="history-list">
+          <div class="history-empty">No queries run yet</div>
+        </div>
+        <button class="btn-clear-history" id="btn-clear-history">Clear History</button>
+      </div>
+
+    </div>
+
+    <!-- Results Panel -->
+    <div class="panel results-panel">
+      <div class="results-meta">
+        <div class="panel-title">Results</div>
+        <span id="result-badge" class="result-badge badge-info" style="display:none"></span>
+        <span id="loading-spinner" class="spinner" style="display:none"></span>
+      </div>
+      <div id="results-container">
+        <div class="placeholder-message">
+          Run a query above to see results here.<br/>
+          Try <code>SELECT * FROM Product</code> or
+          <code>SELECT * FROM Sale LIMIT 10</code>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>Retail POS — Local Environment &nbsp;|&nbsp; SELECT queries only</footer>
+
+  <!-- ── JavaScript ──────────────────────────────────────── -->
+  <script>
+    const queryInput      = document.getElementById("query-input");
+    const resultsContainer= document.getElementById("results-container");
+    const resultBadge     = document.getElementById("result-badge");
+    const historyList     = document.getElementById("history-list");
+    const loadingSpinner  = document.getElementById("loading-spinner");
+
+    // In-memory history — kept for the browser session only
+    let queryHistory = [];
+    const MAX_HISTORY = 15;
+
+    // ── Run query on button click or Ctrl+Enter ───────────
+    document.getElementById("btn-run").addEventListener("click", runQuery);
+    queryInput.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") runQuery();
+    });
+
+    // ── Clear input ───────────────────────────────────────
+    document.getElementById("btn-clear-input").addEventListener("click", () => {
+      queryInput.value = "";
+      queryInput.focus();
+    });
+
+    // ── Clear history ─────────────────────────────────────
+    document.getElementById("btn-clear-history").addEventListener("click", () => {
+      queryHistory = [];
+      renderHistory();
+    });
+
+    // ── Main query function ───────────────────────────────
+    async function runQuery() {
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      // Show loading state
+      setLoading(true);
+      showBadge("", "badge-info");
+
+      try {
+        const response = await fetch("/query", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ query }),
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          // ── Error ───────────────────────────────────────
+          showBadge("Error", "badge-error");
+          resultsContainer.innerHTML = `
+            <div class="error-message">⚠ ${escapeHtml(data.error)}</div>`;
+        } else {
+          // ── Success ─────────────────────────────────────
+          addToHistory(query);
+          if (data.rows.length === 0) {
+            showBadge("0 rows", "badge-info");
+            resultsContainer.innerHTML = `
+              <div class="placeholder-message">No results found for this query.</div>`;
+          } else {
+            showBadge(`${data.count} row${data.count !== 1 ? "s" : ""}`, "badge-success");
+            renderTable(data.columns, data.rows);
+          }
+        }
+      } catch (err) {
+        showBadge("Error", "badge-error");
+        resultsContainer.innerHTML = `
+          <div class="error-message">⚠ Could not reach the server. Is the app running?</div>`;
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ── Render results as an HTML table ──────────────────
+    function renderTable(columns, rows) {
+      const headerCells = columns.map(col =>
+        `<th>${escapeHtml(col)}</th>`
+      ).join("");
+
+      const bodyRows = rows.map(row => {
+        const cells = columns.map(col => {
+          const val = row[col];
+          if (val === null || val === undefined) {
+            return `<td><span class="null-value">NULL</span></td>`;
+          }
+          return `<td>${escapeHtml(String(val))}</td>`;
+        }).join("");
+        return `<tr>${cells}</tr>`;
+      }).join("");
+
+      resultsContainer.innerHTML = `
+        <table>
+          <thead><tr>${headerCells}</tr></thead>
+          <tbody>${bodyRows}</tbody>
+        </table>`;
+    }
+
+    // ── History management ────────────────────────────────
+    function addToHistory(query) {
+      // Avoid consecutive duplicates
+      if (queryHistory[0] === query) return;
+      queryHistory.unshift(query);
+      if (queryHistory.length > MAX_HISTORY) queryHistory.pop();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      if (queryHistory.length === 0) {
+        historyList.innerHTML = `<div class="history-empty">No queries run yet</div>`;
+        return;
+      }
+      historyList.innerHTML = queryHistory.map((q, i) => `
+        <div class="history-item" title="${escapeHtml(q)}"
+             onclick="loadFromHistory(${i})">
+          ${escapeHtml(q.replace(/\s+/g, " "))}
+        </div>`
+      ).join("");
+    }
+
+    function loadFromHistory(index) {
+      queryInput.value = queryHistory[index];
+      queryInput.focus();
+    }
+
+    // ── UI helpers ────────────────────────────────────────
+    function setLoading(active) {
+      loadingSpinner.style.display = active ? "inline-block" : "none";
+      document.getElementById("btn-run").disabled = active;
+    }
+
+    function showBadge(text, className) {
+      if (!text) { resultBadge.style.display = "none"; return; }
+      resultBadge.textContent = text;
+      resultBadge.className   = `result-badge ${className}`;
+      resultBadge.style.display = "inline-block";
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+  </script>
+</body>
+</html>
