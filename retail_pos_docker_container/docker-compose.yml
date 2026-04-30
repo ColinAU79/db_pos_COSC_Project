@@ -6,6 +6,9 @@
 #  Services:
 #    db  → MySQL 8.0  → localhost:3307  (3306 taken by local MySQL)
 #    web → Flask app  → localhost:8080  (5000 taken by AirPlay)
+#
+#  Passwords are stored in .env — never commit that file!
+#  Copy .env.example to .env and fill in your values.
 # ============================================================
 
 services:
@@ -15,7 +18,7 @@ services:
     image: mysql:8.0
     container_name: retail_pos_db
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: retail_pos
     volumes:
       - ./db/init:/docker-entrypoint-initdb.d
@@ -25,7 +28,7 @@ services:
       # MySQL Workbench: connect on host 127.0.0.1, port 3307
       - "3307:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -38,7 +41,7 @@ services:
     environment:
       DB_HOST:     db
       DB_USER:     app_readonly
-      DB_PASSWORD: readonly_pass
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME:     retail_pos
       DB_PORT:     3306
     ports:

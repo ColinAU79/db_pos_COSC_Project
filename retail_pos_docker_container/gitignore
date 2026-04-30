@@ -1,0 +1,13 @@
+# Environment variables — never commit this
+.env
+
+# MySQL data volume
+db_data/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Mac system files
+.DS_Store
